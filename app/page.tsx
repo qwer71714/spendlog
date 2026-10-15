@@ -12,7 +12,7 @@ import GoogleSheetGuideModal from '@/components/GoogleSheetGuideModal';
 import ColumnMappingModal from '@/components/ColumnMappingModal';
 import { ExpenseItem, RawSheetData, ColumnMappingConfig } from '@/types/expense';
 import { calculateMetrics, getSampleExpenseData, parseCsvText } from '@/lib/dataParser';
-import { Sparkles, FileSpreadsheet, ArrowRight, ShieldCheck, Zap, SlidersHorizontal } from 'lucide-react';
+import { Sparkles, FileSpreadsheet, ArrowRight, ShieldCheck, Zap, SlidersHorizontal, CreditCard } from 'lucide-react';
 
 export default function Home() {
   const [items, setItems] = useState<ExpenseItem[]>([]);
@@ -85,22 +85,27 @@ export default function Home() {
           <div className="relative z-10 max-w-3xl space-y-3">
             <div className="inline-flex items-center gap-2 rounded-full border border-indigo-400/30 bg-indigo-500/20 px-3 py-1 text-xs font-semibold text-indigo-200 backdrop-blur-md">
               <Sparkles className="h-3.5 w-3.5 text-indigo-300" />
-              <span>월별 다중 시트 자동 인식 × Gemini 3.8 Flash (생각 깊이: 보통)</span>
+              <span>월별 다중 시트 &amp; 신용카드 정밀 분석 × Gemini 3.8 Flash (토큰 최적화)</span>
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold tracking-tight">
               10월, 9월, 8월, 7월... 어떤 월별 시트든,
               <br />
               <span className="bg-gradient-to-r from-indigo-400 via-violet-300 to-pink-300 bg-clip-text text-transparent">
-                Gemini 3.8 AI가 정밀 분석하고 시각화
+                신용카드와 결제수단까지 정밀 분석 &amp; 시각화
               </span>
               합니다.
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-              캘린더 달력이나 다양한 월별 가계부 탭이 있어도 AI가 원하는 월의 지출 시트를 자동으로 읽어옵니다.
-              <strong> Gemini 3.8 모델</strong>과 <strong>보통(Moderate) 생각 깊이</strong>를 통해 깊이 있는 소비 습관 진단과 맞춤형 절약 리포트를 제공합니다.
+              다양한 카드사(신한 처음, 현대, 삼성, 국민, 가족카드 등)를 지원하며,
+              <strong> AI가 데이터에 실제 존재하는 카드만 압축 추출</strong>하여 사용자의 소중한 API 토큰을 극대화하여 절약합니다.
+              Gemini 3.8 모델의 보통(Moderate) 생각 깊이로 깊이 있는 소비 습관 진단과 맞춤형 절약 리포트를 제공합니다.
             </p>
 
             <div className="pt-2 flex flex-wrap items-center gap-4 text-xs text-slate-300">
+              <div className="flex items-center gap-1.5">
+                <CreditCard className="h-4 w-4 text-pink-400" />
+                <span>신용카드·체크카드 정밀 분석</span>
+              </div>
               <div className="flex items-center gap-1.5">
                 <SlidersHorizontal className="h-4 w-4 text-indigo-400" />
                 <span>스마트 다중 양식 &amp; 열 매핑 지원</span>
@@ -111,7 +116,7 @@ export default function Home() {
               </div>
               <div className="flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                <span>카테고리 자동 유추 &amp; 안전 처리</span>
+                <span>토큰 절약형 최소 추출 엔진</span>
               </div>
             </div>
           </div>

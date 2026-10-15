@@ -2,7 +2,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { ExpenseItem } from '@/types/expense';
-import { Search, Filter, Download, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, Download, ArrowUpDown, ChevronLeft, ChevronRight, CreditCard } from 'lucide-react';
+import { classifyPaymentMethod } from '@/lib/cardUtils';
 import * as XLSX from 'xlsx';
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
 export default function ExpenseTable({ items }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedPayment, setSelectedPayment] = useState<string>('ALL');
   const [sortField, setSortField] = useState<'date' | 'amount'>('date');
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
   const [currentPage, setCurrentPage] = useState(1);
@@ -24,6 +26,15 @@ export default function ExpenseTable({ items }: Props) {
     return Array.from(set);
   }, [items]);
 
+  // 전체 결제수단 및 카드 목록 추출
+  const paymentOptions = useMemo(() => {
+    const set = new Set<string>();
+    items.forEach((item) => {
+      if (item.paymentMethod) set.add(item.paymentMethod);
+    });
+    return Array.from(set);
+  }, [items]);
+
   // 필터링 및 정렬
   const filteredItems = useMemo(() => {
     return items
@@ -31,9 +42,19 @@ export default function ExpenseTable({ items }: Props) {
         const matchesSearch =
           item.item.toLowerCase().includes(searchTerm.toLowerCase()) ||
           (item.notes && item.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+        
         const matchesCategory =
           selectedCategory === 'ALL' || item.category === selectedCategory;
-        return matchesSearch && matchesCategory;
+
+        let matchesPayment = true;
+        if (selectedPayment === 'CREDIT_ONLY') {
+          const c = classifyPaymentMethod(item.paymentMethod || '', item.item, item.notes);
+          matchesPayment = c.isCreditCard;
+        } else if (selectedPayment !== 'ALL') {
+          matchesPayment = item.paymentMethod === selectedPayment;
+        }
+
+        return matchesSearch && matchesCategory && matchesPayment;
       })
       .sort((a, b) => {
         if (sortField === 'date') {
@@ -44,7 +65,7 @@ export default function ExpenseTable({ items }: Props) {
           return sortOrder === 'desc' ? b.amount - a.amount : a.amount - b.amount;
         }
       });
-  }, [items, searchTerm, selectedCategory, sortField, sortOrder]);
+  }, [items, searchTerm, selectedCategory, selectedPayment, sortField, sortOrder]);
 
   // 페이지네이션
   const totalPages = Math.max(1, Math.ceil(filteredItems.length / itemsPerPage));
@@ -129,6 +150,43 @@ export default function ExpenseTable({ items }: Props) {
             </select>
           </div>
 
+          {/* 결제수단 / 카드 필터 */}
+          <div className="relative">
+            <select
+              value={selectedPayment}
+              onChange={(e) => {
+                setSelectedPayment(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium text-slate-700 focus:border-indigo-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+            >
+              <option value="ALL">모든 결제수단</option>
+              <option value="CREDIT_ONLY">💳 신용카드 전체</option>
+              {paymentOptions.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* 신용카드만 보기 퀵 버튼 */}
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedPayment((prev) => (prev === 'CREDIT_ONLY' ? 'ALL' : 'CREDIT_ONLY'));
+              setCurrentPage(1);
+            }}
+            className={`flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold transition shadow-xs ${
+              selectedPayment === 'CREDIT_ONLY'
+                ? 'bg-indigo-600 text-white shadow-indigo-500/20'
+                : 'border border-indigo-200 bg-indigo-50/60 text-indigo-700 hover:bg-indigo-100 dark:border-indigo-800 dark:bg-indigo-950/60 dark:text-indigo-300'
+            }`}
+          >
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>신용카드만</span>
+          </button>
+
           {/* 엑셀 다운로드 버튼 */}
           <button
             type="button"
@@ -167,7 +225,7 @@ export default function ExpenseTable({ items }: Props) {
                   <ArrowUpDown className="h-3 w-3" />
                 </div>
               </th>
-              <th className="py-3 px-3 font-semibold hidden md:table-cell">결제수단</th>
+              <th className="py-3 px-3 font-semibold hidden md:table-cell">결제수단 / 카드</th>
               <th className="py-3 px-3 font-semibold hidden sm:table-cell">메모</th>
             </tr>
           </thead>
@@ -198,8 +256,47 @@ export default function ExpenseTable({ items }: Props) {
                   <td className="py-3 px-3 text-right font-bold text-slate-900 dark:text-white whitespace-nowrap">
                     {item.amount.toLocaleString()}원
                   </td>
-                  <td className="py-3 px-3 text-slate-500 hidden md:table-cell whitespace-nowrap">
-                    {item.paymentMethod || '카드'}
+                  <td className="py-3 px-3 hidden md:table-cell whitespace-nowrap">
+                    {(() => {
+                      const info = classifyPaymentMethod(item.paymentMethod || '', item.item, item.notes);
+                      if (info.isCreditCard) {
+                        return (
+                          <span
+                            className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold text-white shadow-2xs"
+                            style={{ backgroundColor: info.color || '#6366F1' }}
+                          >
+                            <CreditCard className="h-3 w-3" />
+                            <span>{item.paymentMethod || '신용카드'}</span>
+                          </span>
+                        );
+                      }
+                      if (info.type === 'debit') {
+                        return (
+                          <span className="inline-flex items-center rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300">
+                            {item.paymentMethod || '체크카드'}
+                          </span>
+                        );
+                      }
+                      if (info.type === 'transfer') {
+                        return (
+                          <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/70 dark:text-blue-300">
+                            {item.paymentMethod || '계좌이체'}
+                          </span>
+                        );
+                      }
+                      if (info.type === 'cash') {
+                        return (
+                          <span className="inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:bg-amber-950/70 dark:text-amber-300">
+                            {item.paymentMethod || '현금'}
+                          </span>
+                        );
+                      }
+                      return (
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:bg-slate-800 dark:text-slate-400">
+                          {item.paymentMethod || '기타'}
+                        </span>
+                      );
+                    })()}
                   </td>
                   <td className="py-3 px-3 text-slate-400 max-w-[150px] truncate hidden sm:table-cell">
                     {item.notes || '-'}

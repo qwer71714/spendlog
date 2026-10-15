@@ -13,6 +13,7 @@ import {
   RefreshCw,
   Lightbulb,
   ShieldAlert,
+  CreditCard,
 } from 'lucide-react';
 
 interface Props {
@@ -270,6 +271,64 @@ export default function AiAnalysisCard({
               </p>
             </div>
           </div>
+
+          {/* 신용카드 및 결제수단 AI 맞춤 코칭 (NEW) */}
+          {analysisResult.creditCardCoaching && (
+            <div className="rounded-xl border border-indigo-100 bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50/60 p-4 shadow-sm dark:border-indigo-900/40 dark:bg-slate-800/80">
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-indigo-100/80 pb-2.5 dark:border-indigo-900/30">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-600 text-white shadow-xs">
+                    <CreditCard className="h-3.5 w-3.5" />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-white">
+                    신용카드 &amp; 결제수단 맞춤 진단
+                  </h4>
+                </div>
+                <span className="rounded-full bg-indigo-100 px-2 py-0.5 text-[10px] font-semibold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300">
+                  실제 사용 카드 기반 맞춤 분석
+                </span>
+              </div>
+
+              {/* 총평 */}
+              <p className="mt-2.5 text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                {analysisResult.creditCardCoaching.summary}
+              </p>
+
+              {/* 카드별 맞춤 조언 목록 */}
+              {analysisResult.creditCardCoaching.cardSpecificAdvice &&
+                analysisResult.creditCardCoaching.cardSpecificAdvice.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <span className="text-[11px] font-bold text-indigo-950 dark:text-indigo-200">
+                      💳 보유 카드별 맞춤 실적·혜택 가이드
+                    </span>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      {analysisResult.creditCardCoaching.cardSpecificAdvice.map((cardAdvice, idx) => (
+                        <div
+                          key={idx}
+                          className="rounded-lg border border-indigo-100 bg-white/90 p-2.5 text-xs shadow-xs dark:border-indigo-900/40 dark:bg-slate-900/90"
+                        >
+                          <div className="flex items-center gap-1.5 font-bold text-indigo-900 dark:text-indigo-300 mb-1">
+                            <span className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                            <span>{cardAdvice.cardName}</span>
+                          </div>
+                          <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-normal">
+                            {cardAdvice.advice}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {/* 주의사항/팁 */}
+              {analysisResult.creditCardCoaching.debtWarningOrTip && (
+                <div className="mt-3 flex items-start gap-2 rounded-lg bg-indigo-100/60 p-2.5 text-[11px] text-indigo-900 dark:bg-indigo-950/60 dark:text-indigo-200">
+                  <ShieldAlert className="h-3.5 w-3.5 shrink-0 text-indigo-600 mt-0.5" />
+                  <span>{analysisResult.creditCardCoaching.debtWarningOrTip}</span>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 소비 패턴 진단 카드들 */}
           {analysisResult.patterns && analysisResult.patterns.length > 0 && (

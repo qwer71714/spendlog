@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ExpenseItem, SpendingAnalysisMetrics, AiAnalysisResult } from '@/types/expense';
 import { callGeminiGenerate } from '@/lib/gemini';
+import {
+  calculatePaymentMetrics,
+  buildCreditCardPromptSummary,
+  generateSmartCardCoaching,
+} from '@/lib/cardUtils';
 
 export async function POST(req: NextRequest) {
   let items: ExpenseItem[] = [];
@@ -36,6 +41,10 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // 결제수단 및 신용카드 메트릭 준비 (토큰 절약형)
+    const paymentMetrics = metrics.paymentMetrics || calculatePaymentMetrics(items);
+    const cardSummaryPrompt = buildCreditCardPromptSummary(paymentMetrics);
+
     // Gemini API 호출 프롬프트 준비
     const categorySummaryText = metrics.categorySummaries
       .map((c) => `- ${c.category}: ${c.total.toLocaleString()}원 (${c.percentage}%, 총 ${c.count}건)`)
@@ -50,12 +59,27 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `당신은 대한민국 최고의 공인 개인 재무/자산관리 전문가이자 따뜻하지만 날카로운 소비 습관 코칭 AI입니다.
 사용자가 제공한 실제 가계부/소비 기록 데이터를 분석하여 직관적이고 실천 가능한 분석 보고서를 작성하세요.
 
+★ 신용카드 분석 및 토큰 절약 원칙:
+1. 사용자가 제공한 [결제수단 및 신용카드 사용 통계]에 실제 등장한 카드(예: '신용카드 처음', '아빠카드', '신한카드', '현대카드' 등)에 대해서만 정밀 진단하세요.
+2. 데이터에 없는 가상의 카드사를 지어내거나 불필요하게 나열하지 마세요. (사용자 토큰 절약 최우선 원칙)
+3. 신용카드와 체크카드, 계좌이체 비중을 비교하여 과소비 방지, 결제일 잔고 관리, 소득공제(체크카드 30%) 최적화 관점의 코칭을 제공하세요.
+
 반드시 아래 JSON 형식으로만 응답해야 합니다. 마크다운 코드블록(\`\`\`json ... \`\`\`) 없이 순수 JSON 문자열만 반환하세요.
 
 JSON 형식:
 {
-  "overview": "전체적인 소비 상태에 대한 2~3줄의 핵심 평가 및 총평",
+  "overview": "전체적인 소비 상태에 대한 3~6줄의 핵심 평가 및 총평",
   "score": 78,
+  "creditCardCoaching": {
+    "summary": "신용카드 사용 비중 및 결제 습관 진단 (실제 사용된 카드 기준 2~3문장)",
+    "cardSpecificAdvice": [
+      {
+        "cardName": "실제 데이터에 등장한 카드명 (예: 신용카드 처음)",
+        "advice": "해당 카드 혜택/실적 활용 및 소비 절약 팁"
+      }
+    ],
+    "debtWarningOrTip": "신용카드 과소비 방지 및 결제일 대비 조언"
+  },
   "patterns": [
     {
       "title": "패턴 요약 제목 (예: 잦은 카페/간식 소비 습관)",
@@ -70,7 +94,7 @@ JSON 형식:
       "advice": "구체적이고 실천 가능한 절약 팁과 대안"
     }
   ],
-  "budgetAdvice": "다음 달을 위한 현실적인 예산 및 지출 가이드라인 (2~3문장)"
+  "budgetAdvice": "다음 달을 위한 현실적인 예산 및 지출 가이드라인 (5~10문장)"
 }`;
 
     const userPrompt = `[소비 분석 데이터]
@@ -83,6 +107,8 @@ ${categorySummaryText}
 
 - 상위 고액 지출 TOP 5:
 ${top5Items}
+
+${cardSummaryPrompt}
 
 위 데이터를 정밀 분석하여 정확한 JSON 포맷으로 응답해주세요.`;
 
@@ -230,9 +256,13 @@ export function generateLocalAnalysis(metrics: SpendingAnalysisMetrics, items: E
 
   const score = Math.max(50, Math.min(95, Math.round(100 - (topCategory?.percentage || 30) * 0.8)));
 
+  const paymentMetrics = metrics.paymentMetrics || calculatePaymentMetrics(items);
+  const creditCardCoaching = generateSmartCardCoaching(paymentMetrics);
+
   return {
     overview: `총 ${metrics.totalCount}건 동안 ${metrics.totalAmount.toLocaleString()}원을 지출하셨으며, 일평균 지출액은 ${metrics.dailyAverage.toLocaleString()}원입니다. '${topCategory?.category || '주요 지출'}'이 가장 큰 비중을 차지하고 있어 해당 항목의 최적화가 전체 절약의 핵심입니다.`,
     score,
+    creditCardCoaching,
     patterns,
     savingRecommendations,
     budgetAdvice: `다음 달 권장 총 지출액은 현재보다 약 10% 절감된 ${(Math.round(total * 0.9 / 10000) * 10000).toLocaleString()}원입니다. 매주 일요일 지출 현황을 점검하는 루틴을 만들어보세요.`,

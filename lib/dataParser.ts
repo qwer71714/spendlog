@@ -7,6 +7,7 @@ import {
   RawSheetData,
   ColumnMappingConfig,
 } from '@/types/expense';
+import { calculatePaymentMetrics } from '@/lib/cardUtils';
 
 export const CATEGORY_COLORS: Record<string, string> = {
   '식비': '#F59E0B',
@@ -224,15 +225,41 @@ export function autoDetectColumnMapping(raw: RawSheetData): ColumnMappingConfig 
 
   // 1. 헤더 키워드 우선 탐색
   let dateCol = findCol([/날짜/, /일자/, /거래일/, /승인일/, /이용일/, /결제일/, /일시/, /date/, /time/]);
-  let itemCol = findCol([/내용/, /항목/, /가맹점/, /사용처/, /적요/, /상호/, /내역/, /item/, /merchant/, /title/, /desc/]);
+  // 내용, 가맹점, 상호 우선 (적요는 paymentCol 후보가 될 수 있으므로 우선순위 분리)
+  let itemCol = findCol([/내용/, /항목/, /가맹점/, /사용처/, /상호/, /내역/, /item/, /merchant/, /title/, /desc/]);
   // 금액 열: '출금액' 또는 '지출'이 '입금액'보다 우선순위
   let amountCol = findCol([/출금/, /지출/, /승인금액/, /이용금액/, /결제금액/, /금액/, /amount/, /price/, /cost/]);
-  let categoryCol = findCol([/카테고리/, /분류/, /구분/, /업종/, /종류/, /category/, /tag/]);
-  let paymentCol = findCol([/결제수단/, /카드/, /수단/, /결제방법/, /payment/, /method/]);
+  let categoryCol = findCol([/카테고리/, /분류/, /업종/, /종류/, /category/, /tag/]);
+  let paymentCol = findCol([/결제수단/, /사용카드/, /카드/, /수단/, /결제방법/, /payment/, /method/]);
   let notesCol = findCol([/메모/, /비고/, /note/, /remark/]);
 
+  const dataRows = rows.slice(headerRowIndex + 1, headerRowIndex + 8);
+
+  // 만약 itemCol이 아직 감지되지 않았으면 '적요' 또는 '구분' 탐색
+  if (!itemCol) {
+    itemCol = findCol([/적요/, /구분/]);
+  }
+
+  // 만약 paymentCol이 비어있다면, 남은 열(예: '적요', '사용카드') 중 결제/카드 데이터가 들어있는 열 자동 탐색
+  if (!paymentCol && dataRows.length > 0) {
+    const candidateHeaders = headers.filter(
+      (h) => h && h !== dateCol && h !== amountCol && h !== itemCol && h !== categoryCol && h !== notesCol
+    );
+    for (const cand of candidateHeaders) {
+      const colIdx = headers.indexOf(cand);
+      const isPaymentKeyword = /적요|결제|수단|구분|카드/.test(cand);
+      const hasPaymentValues = dataRows.some((r) => {
+        const val = String(r[colIdx] || '').trim();
+        return /카드|체크|신용|이체|현금|페이|pay|card/i.test(val);
+      });
+      if (isPaymentKeyword || hasPaymentValues) {
+        paymentCol = cand;
+        break;
+      }
+    }
+  }
+
   // 2. 만약 헤더 이름으로 감지가 안 된 경우, 실제 행 값의 데이터 타입 패턴 검사
-  const dataRows = rows.slice(headerRowIndex + 1, headerRowIndex + 6);
   if (dataRows.length > 0) {
     headers.forEach((header, colIdx) => {
       if (!dateCol) {
@@ -312,7 +339,12 @@ export function parseTableWithMapping(
     }
 
     // 결제수단 및 메모
-    const paymentMethod = paymentIdx >= 0 && row[paymentIdx] ? String(row[paymentIdx]).trim() : '카드';
+    let paymentMethod = paymentIdx >= 0 && row[paymentIdx] ? String(row[paymentIdx]).trim() : '';
+    if (!paymentMethod) {
+      if (/이체|송금|입금/.test(rawItem)) paymentMethod = '계좌이체';
+      else if (/현금/.test(rawItem)) paymentMethod = '현금';
+      else paymentMethod = '카드';
+    }
     const notes = notesIdx >= 0 && row[notesIdx] ? String(row[notesIdx]).trim() : '';
 
     items.push({
@@ -448,6 +480,8 @@ export function calculateMetrics(items: ExpenseItem[]): SpendingAnalysisMetrics 
     };
   }
 
+  const paymentMetrics = calculatePaymentMetrics(items);
+
   return {
     totalAmount,
     totalCount,
@@ -457,40 +491,41 @@ export function calculateMetrics(items: ExpenseItem[]): SpendingAnalysisMetrics 
     dailyTrends,
     startDate,
     endDate,
+    paymentMetrics,
   };
 }
 
-// 현실감 있는 데모 샘플 데이터
+// 현실감 있는 데모 샘플 데이터 (다양한 신용카드 및 결제수단 포함)
 export function getSampleExpenseData(): ExpenseItem[] {
   const sampleRaw: { date: string; item: string; amount: number; category: string; paymentMethod: string; notes: string }[] = [
-    { date: '2026-03-01', item: 'CU 편의점 도시락 & 음료', amount: 8500, category: '식비', paymentMethod: '신용카드', notes: '점심 식사' },
-    { date: '2026-03-01', item: '스타벅스 아메리카노 Grande', amount: 5000, category: '카페/간식', paymentMethod: '신용카드', notes: '개인 작업' },
+    { date: '2026-03-01', item: 'CU 편의점 도시락 & 음료', amount: 8500, category: '식비', paymentMethod: '신용카드 처음', notes: '점심 식사' },
+    { date: '2026-03-01', item: '스타벅스 아메리카노 Grande', amount: 5000, category: '카페/간식', paymentMethod: '신용카드 처음', notes: '개인 작업' },
     { date: '2026-03-02', item: '지하철 후불교통비 충전', amount: 55000, category: '교통비', paymentMethod: '체크카드', notes: '월 정기 대중교통' },
-    { date: '2026-03-03', item: '쿠팡 로켓프레시 장보기', amount: 48900, category: '생활/마트', paymentMethod: '간편결제', notes: '식재료 및 계란' },
-    { date: '2026-03-03', item: '동네 순대국밥', amount: 10000, category: '식비', paymentMethod: '지역화폐', notes: '저녁' },
-    { date: '2026-03-04', item: '메가MGC커피 바닐라라떼', amount: 3700, category: '카페/간식', paymentMethod: '신용카드', notes: '' },
-    { date: '2026-03-05', item: '통신비 (SKT 5G 요금)', amount: 69000, category: '주거/통신', paymentMethod: '자동이체', notes: '월 정기 납부' },
+    { date: '2026-03-03', item: '쿠팡 로켓프레시 장보기', amount: 48900, category: '생활/마트', paymentMethod: '카카오페이', notes: '식재료 및 계란' },
+    { date: '2026-03-03', item: '동네 순대국밥', amount: 10000, category: '식비', paymentMethod: '체크카드', notes: '저녁' },
+    { date: '2026-03-04', item: '메가MGC커피 바닐라라떼', amount: 3700, category: '카페/간식', paymentMethod: '신용카드 처음', notes: '' },
+    { date: '2026-03-05', item: '통신비 (SKT 5G 요금)', amount: 69000, category: '주거/통신', paymentMethod: '계좌이체', notes: '월 정기 납부' },
     { date: '2026-03-06', item: '팀 회식 2차 부담금', amount: 35000, category: '식비', paymentMethod: '카카오페이', notes: '이자카야' },
-    { date: '2026-03-07', item: '무신사 봄 자켓 구매', amount: 129000, category: '쇼핑', paymentMethod: '신용카드', notes: '환절기 아우터' },
-    { date: '2026-03-08', item: '넷플릭스 프리미엄 구독료', amount: 17000, category: '문화/여가', paymentMethod: '신용카드', notes: '월 정기 구독' },
+    { date: '2026-03-07', item: '무신사 봄 자켓 구매', amount: 129000, category: '쇼핑', paymentMethod: '현대카드 ZERO', notes: '환절기 아우터' },
+    { date: '2026-03-08', item: '넷플릭스 프리미엄 구독료', amount: 17000, category: '문화/여가', paymentMethod: '신용카드 처음', notes: '월 정기 구독' },
     { date: '2026-03-09', item: '카카오T 택시 (야근 귀가)', amount: 18400, category: '교통비', paymentMethod: '카카오페이', notes: '회사 야근 택시비' },
     { date: '2026-03-10', item: '약국 종합감기약 & 비타민', amount: 12000, category: '의료/건강', paymentMethod: '체크카드', notes: '환절기 감기' },
-    { date: '2026-03-11', item: '배달의민족 삼겹살 1인세트', amount: 24500, category: '식비', paymentMethod: '간편결제', notes: '저녁 배달' },
-    { date: '2026-03-12', item: '투썸플레이스 케이크 & 커피', amount: 13200, category: '카페/간식', paymentMethod: '신용카드', notes: '친구 미팅' },
-    { date: '2026-03-13', item: '올리브영 스킨케어 & 폼클렌징', amount: 34500, category: '쇼핑', paymentMethod: '신용카드', notes: '세일 기간 구매' },
-    { date: '2026-03-14', item: 'CGV 영화 관람 (듄2)', amount: 15000, category: '문화/여가', paymentMethod: '신용카드', notes: '주말 문화생활' },
-    { date: '2026-03-15', item: '이마트 주말 장보기', amount: 82300, category: '생활/마트', paymentMethod: '신용카드', notes: '생필품 및 과일' },
+    { date: '2026-03-11', item: '배달의민족 삼겹살 1인세트', amount: 24500, category: '식비', paymentMethod: '체크카드', notes: '저녁 배달' },
+    { date: '2026-03-12', item: '투썸플레이스 케이크 & 커피', amount: 13200, category: '카페/간식', paymentMethod: '아빠카드', notes: '친구 미팅' },
+    { date: '2026-03-13', item: '올리브영 스킨케어 & 폼클렌징', amount: 34500, category: '쇼핑', paymentMethod: '신용카드 처음', notes: '세일 기간 구매' },
+    { date: '2026-03-14', item: 'CGV 영화 관람 (듄2)', amount: 15000, category: '문화/여가', paymentMethod: '삼성카드 taptap', notes: '주말 문화생활' },
+    { date: '2026-03-15', item: '이마트 주말 장보기', amount: 82300, category: '생활/마트', paymentMethod: '삼성카드 taptap', notes: '생필품 및 과일' },
     { date: '2026-03-17', item: '회사 근처 돈까스 정식', amount: 12000, category: '식비', paymentMethod: '체크카드', notes: '점심' },
-    { date: '2026-03-18', item: '교보문고 개발 서적 2권', amount: 56000, category: '문화/여가', paymentMethod: '신용카드', notes: '자기계발' },
-    { date: '2026-03-20', item: '치과 정기 스케일링', amount: 16800, category: '의료/건강', paymentMethod: '신용카드', notes: '연 1회 보험 스케일링' },
+    { date: '2026-03-18', item: '교보문고 개발 서적 2권', amount: 56000, category: '문화/여가', paymentMethod: '현대카드 ZERO', notes: '자기계발' },
+    { date: '2026-03-20', item: '치과 정기 스케일링', amount: 16800, category: '의료/건강', paymentMethod: '체크카드', notes: '연 1회 보험 스케일링' },
     { date: '2026-03-22', item: '다이소 생활용품 수납함', amount: 9000, category: '생활/마트', paymentMethod: '현금', notes: '방 정리' },
-    { date: '2026-03-23', item: '주말 외식 패밀리 레스토랑', amount: 88000, category: '식비', paymentMethod: '신용카드', notes: '가족 외식' },
-    { date: '2026-03-25', item: '유튜브 프리미엄 정기결제', amount: 14900, category: '문화/여가', paymentMethod: '신용카드', notes: '구독' },
+    { date: '2026-03-23', item: '주말 외식 패밀리 레스토랑', amount: 88000, category: '식비', paymentMethod: '아빠카드', notes: '가족 외식' },
+    { date: '2026-03-25', item: '유튜브 프리미엄 정기결제', amount: 14900, category: '문화/여가', paymentMethod: '신용카드 처음', notes: '구독' },
     { date: '2026-03-26', item: '맥도날드 빅맥 세트', amount: 7200, category: '식비', paymentMethod: '체크카드', notes: '점심' },
-    { date: '2026-03-27', item: '쿠팡 와우 회원권', amount: 4990, category: '쇼핑', paymentMethod: '자동이체', notes: '멤버십' },
-    { date: '2026-03-28', item: '나이키 런닝화 구매', amount: 149000, category: '쇼핑', paymentMethod: '신용카드', notes: '봄 운동용' },
+    { date: '2026-03-27', item: '쿠팡 와우 회원권', amount: 4990, category: '쇼핑', paymentMethod: '계좌이체', notes: '멤버십' },
+    { date: '2026-03-28', item: '나이키 런닝화 구매', amount: 149000, category: '쇼핑', paymentMethod: '현대카드 ZERO', notes: '봄 운동용' },
     { date: '2026-03-29', item: '아파트 관리비 & 수도세', amount: 185000, category: '주거/통신', paymentMethod: '계좌이체', notes: '관리비 고지서' },
-    { date: '2026-03-30', item: '동네 정육점 한우 소고기', amount: 42000, category: '식비', paymentMethod: '신용카드', notes: '저녁 요리' },
+    { date: '2026-03-30', item: '동네 정육점 한우 소고기', amount: 42000, category: '식비', paymentMethod: '신용카드 처음', notes: '저녁 요리' },
   ];
 
   return sampleRaw.map((r, i) => ({

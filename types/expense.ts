@@ -22,6 +22,54 @@ export interface DailySummary {
   count: number;
 }
 
+export interface CardUsageSummary {
+  cardName: string;
+  cardCompany: string;
+  isCredit: boolean;
+  total: number;
+  count: number;
+  percentageOfCredit: number; // 신용카드 내 비중 (%)
+  percentageOfTotal: number; // 전체 지출 중 비중 (%)
+  color: string;
+}
+
+export interface PaymentMethodSummary {
+  name: string;
+  type: 'credit' | 'debit' | 'transfer' | 'cash' | 'easy_pay' | 'other';
+  total: number;
+  count: number;
+  percentage: number;
+  color: string;
+}
+
+export interface PaymentMetrics {
+  totalCreditAmount: number;
+  totalCreditCount: number;
+  creditPercentage: number;
+  totalDebitAmount: number;
+  totalDebitCount: number;
+  debitPercentage: number;
+  totalTransferAmount: number;
+  totalTransferCount: number;
+  totalCashAmount: number;
+  totalCashCount: number;
+  totalEasyPayAmount: number;
+  totalEasyPayCount: number;
+  totalOtherAmount: number;
+  totalOtherCount: number;
+  distinctCreditCards: CardUsageSummary[]; // 실제 발견된 신용카드 목록 (토큰 절약형)
+  methodSummaries: PaymentMethodSummary[];
+}
+
+export interface CreditCardCoaching {
+  summary: string;
+  cardSpecificAdvice: {
+    cardName: string;
+    advice: string;
+  }[];
+  debtWarningOrTip: string;
+}
+
 export interface SpendingAnalysisMetrics {
   totalAmount: number;
   totalCount: number;
@@ -36,11 +84,13 @@ export interface SpendingAnalysisMetrics {
   dailyTrends: DailySummary[];
   startDate: string;
   endDate: string;
+  paymentMetrics?: PaymentMetrics;
 }
 
 export interface AiAnalysisResult {
   overview: string;
   score: number; // 1-100
+  creditCardCoaching?: CreditCardCoaching;
   patterns: {
     title: string;
     description: string;
