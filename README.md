@@ -1,36 +1,121 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 💳 SpendLog (스펜드로그)
+> **"가계부 정리, 이제 직접 계산하지 마세요!"**  
+> 구글 스프레드시트 링크나 엑셀 파일만 넣으면, **차트 시각화**부터 **Gemini 3.8 AI 심층 지출 코칭**까지 한 번에 해결해 주는 스마트 소비 분석 웹 서비스입니다.
 
-## Getting Started
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-SpendLog%20바로가기-6366f1?style=for-the-badge&logo=vercel)](https://spendlog-puce.vercel.app)
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+## 🌟 이런 분들께 추천해요!
+
+- 엑셀이나 구글 시트에 가계부를 적어두긴 했는데, **어디에 돈을 많이 썼는지 한눈에 안 들어오는 분**
+- 지난달과 이번 달의 **소비 패턴과 과소비 항목을 분석**하고 싶은 분
+- 매달 반복되는 구독료, 할부금, 카페/외식비 등 **숨은 누수 지출을 찾아 절약하고 싶은 분**
+- 카드사나 은행마다 엑셀 양식이 제각각이라 **정리하기 귀찮으셨던 분**
+
+---
+
+## ✨ 핵심 기능
+
+### 1. 📊 한눈에 들어오는 소비 시각화 대시보드
+- **카테고리별 지출 비율 (도넛 차트)**: 식비, 쇼핑, 카페, 교통 등 어디에 가장 많이 썼는지 직관적으로 확인
+- **일자별 지출 추이 (라인 차트)**: 월초, 월말, 주말 등 소비가 집중되는 날을 한눈에 파악
+- **요일별 평균 지출 분석**: 주말 소비가 많은지 평일 소비가 많은지 파악
+- **지출 TOP 5 랭킹**: 이번 달 가장 큰 금액이 나간 소비처 목록 확인
+
+### 2. 📑 구글 스프레드시트 링크 원클릭 연동
+- 구글 시트 공유 링크만 복사해서 붙여넣으면 즉시 데이터를 불러옵니다.
+- **월별 탭 자동 인식**: `10월`, `9월`, `8월`, `7월` 등 월별로 시트 탭이 나뉘어 있어도 버튼 클릭 한 번으로 자유롭게 전환할 수 있습니다.
+- **🌐 전월 통합 분석**: 여러 달의 지출 내역을 한 번에 합쳐서 다월 누적 소비 경향을 분석할 수 있습니다.
+
+### 3. 📁 엑셀(.xlsx) / CSV 파일 드래그 앤 드롭
+- 은행, 카드사, 토스, 뱅크샐러드 등에서 다운로드한 엑셀 파일을 마우스로 끌어다 놓기만 하면 1초 만에 로드됩니다.
+
+### 4. 🤖 최신 Gemini 3.8 AI 지출 코칭 리포트
+- 최신 **Gemini 3.8 추론 엔진**과 **보통 생각 깊이(Thinking Budget: 1024)**가 적용되어 있습니다.
+- 단순한 금액 합계 나열이 아닌, 소비 성향을 입체적으로 진단합니다:
+  - 🔍 **소비 성향 진단 요약**: 이번 달 지출의 전반적인 성격과 특징 분석
+  - ⚠️ **불필요한 과소비 감지**: 잦은 배달/택시/충동구매 등 새어 나가는 돈 포착
+  - 💡 **실천 가능한 카테고리별 절약 팁**: 바로 실행할 수 있는 현실적인 절약 가이드
+  - 🎯 **다음 달 권장 예산 및 목표**: 현실적인 저축 및 소비 목표 제시
+
+### 5. 🧩 스마트 열 자동 매핑 (양식이 달라도 OK!)
+- 파일마다 컬럼 이름이 달라도(예: `날짜`/`이용일자`, `금액`/`지출금액`/`출금액`, `내용`/`가맹점명`) AI와 스마트 엔진이 알아서 컬럼을 찾아 매칭해 줍니다.
+- 원하는 경우 직접 열을 수동으로 재지정할 수도 있습니다.
+
+### 6. 🔒 안심할 수 있는 개인정보 보호
+- 사용자의 가계부 데이터와 API 키는 **외부 서버 데이터베이스에 절대 저장되지 않습니다.**
+- 모든 데이터 처리는 사용자의 웹 브라우저 메모리 안에서만 안전하게 실행됩니다.
+
+---
+
+## 🚀 3단계 간단 사용법
+
+```
+[1단계] 가계부 불러오기 ──> [2단계] 통계·차트 확인 ──> [3단계] Gemini 3.8 AI 분석
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **가계부 불러오기**:
+   - 구글 시트 링크를 붙여넣고 **[스프레드시트 불러오기]** 버튼을 누르거나,
+   - 소장 중인 엑셀/CSV 파일을 업로드창에 끌어다 놓으세요.
+   - *(체험해보고 싶다면 상단 탭에서 **[샘플 데모 체험]**을 누르시면 됩니다)*
+2. **소비 내역 확인**:
+   - 상단 요약 카드(총 지출액, 하루 평균 지출액, 최대 지출액 등)와 차트를 확인합니다.
+   - 월별 탭(`10월`, `9월` 등)을 눌러 원하는 달의 데이터로 즉시 전환해보세요.
+3. **AI 분석 리포트 생성**:
+   - **[Gemini 3.8 AI 분석 시작]** 버튼을 누르면 AI 코칭 리포트가 생성됩니다!
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 💡 구글 스프레드시트 공유 권한 설정 방법
 
-## Learn More
+구글 시트를 불러오려면 시트의 공유 권한이 '링크가 있는 모든 사용자'로 열려 있어야 합니다:
 
-To learn more about Next.js, take a look at the following resources:
+1. 구글 스프레드시트 우측 상단의 **[공유]** 버튼 클릭
+2. 일반 액세스를 **'제한됨' ➡️ '링크가 있는 모든 사용자'**로 변경
+3. 역할이 **'뷰어'**로 되어 있는지 확인 후 **[링크 복사]** 클릭
+4. 복사한 링크를 SpendLog 입력창에 붙여넣으면 끝!
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 🔑 Gemini API 키 안내 (선택 사항)
 
-## Deploy on Vercel
+- **API 키가 없어도 바로 사용 가능**:
+  - 기본적으로 내장된 고성능 시뮬레이션 엔진이 작동하여 모든 분석과 차트를 즉시 체험하실 수 있습니다.
+- **나만의 전용 Gemini 3.8 AI를 사용하고 싶다면**:
+  - 우측 상단 `API 키 설정`을 눌러 Google AI Studio에서 무료로 발급받은 Gemini API Key를 등록하시면 됩니다. (무료 키로도 충분히 사용 가능합니다)
+  - 발급 링크: [Google AI Studio (무료 API 키 발급)](https://aistudio.google.com/app/apikey)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🛠️ 기술 스택 (Tech Stack)
+
+- **Frontend**: Next.js 16 (App Router), React 19, TypeScript
+- **Styling**: Tailwind CSS, Lucide Icons
+- **Visualization**: Recharts (도넛 차트, 영역 차트, 바 차트)
+- **Data Parsing**: XLSX (SheetJS), Papaparse (CSV), Custom Multi-Tab Sheet Parser
+- **AI Engine**: Google Gemini API (Gemini 3.8 / Flash 최신 모델, Thinking Budget 1024)
+- **Deployment**: Vercel Edge Network
+
+---
+
+## 💻 로컬에서 직접 실행하기 (개발자용)
+
+```bash
+# 1. 저장소 클론
+git clone https://github.com/your-username/spendlog.git
+cd spendlog
+
+# 2. 패키지 설치
+npm install
+
+# 3. 개발 서버 실행
+npm run dev
+```
+
+브라우저에서 [http://localhost:3000](http://localhost:3000)으로 접속하시면 바로 실행됩니다.
+
+---
+
+## 📄 라이선스
+MIT License
